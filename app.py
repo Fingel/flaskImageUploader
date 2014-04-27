@@ -1,5 +1,5 @@
 from flask import Flask
-from flask import render_template, request
+from flask import render_template, request, make_response
 from werkzeug.utils import secure_filename
 from PIL import Image
 import uuid
@@ -17,25 +17,33 @@ def home():
 
 
 @cross_origin(origins="*", send_wildcard=True)
-@app.route('/upload/profile/user/', methods=['POST'])
+@app.route('/upload/profile/user/', methods=['POST', 'OPTIONS'])
 def upload_profile_image():
-    file = request.files['file']
-    url = ''
-    if file and allowed_file(file.filename):
-        filename = secure_filename(str(uuid.uuid4()) + ".jpg")
-        temp = StringIO.StringIO()
-        try:
-            im = Image.open(file)
-            if im.mode != "RGB":
-                im = im.convert("RGB")
-            im.thumbnail((app.config['PROFILE_IMAGE_SIZE'], app.config['PROFILE_IMAGE_SIZE']))
-            im.save(temp, "JPEG")
-            url = upload_to_s3(temp.getvalue(), filename)
-        except IOError as e:
-            return "{error: '" + str(e) + "' }"
-        return url
+    if request.method == "OPTIONS":
+        response = make_response("")
+        response.headers['Access-Control-Allow-Origin'] = "*"
+        response.headers['Access-Control-Allow-Method'] = "GET, POST"
+        response.headers['Access-Control-Allow-Headers'] = "X-Custom-Header"
     else:
-        return "{error: 'Could not upload file.'}"
+        file = request.files['file']
+        url = ''
+        if file and allowed_file(file.filename):
+            filename = secure_filename(str(uuid.uuid4()) + ".jpg")
+            temp = StringIO.StringIO()
+            try:
+                im = Image.open(file)
+                if im.mode != "RGB":
+                    im = im.convert("RGB")
+                im.thumbnail((app.config['PROFILE_IMAGE_SIZE'], app.config['PROFILE_IMAGE_SIZE']))
+                im.save(temp, "JPEG")
+                url = upload_to_s3(temp.getvalue(), filename)
+            except IOError as e:
+                return "{error: '" + str(e) + "' }"
+            response = make_response(url)
+            response.headers['Access-Control-Allow-Origin'] = "*"
+            return response
+        else:
+            return "{error: 'Could not upload file.'}"
 
 
 def upload_to_s3(file, filename):
