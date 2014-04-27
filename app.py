@@ -24,6 +24,7 @@ def upload_profile_image():
         response.headers['Access-Control-Allow-Origin'] = "*"
         response.headers['Access-Control-Allow-Method'] = "GET, POST"
         response.headers['Access-Control-Allow-Headers'] = "X-Custom-Header"
+        return response
     else:
         file = request.files['file']
         url = ''
