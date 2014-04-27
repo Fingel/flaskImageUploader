@@ -1,10 +1,9 @@
 from flask import Flask
 from flask import render_template, request, make_response
 from werkzeug.utils import secure_filename
-from PIL import Image
+from PIL import Image, ExifTags
 import uuid
 from simples3 import S3Bucket
-from flask_cors import cross_origin
 import StringIO
 
 app = Flask(__name__)
@@ -16,7 +15,6 @@ def home():
     return render_template('upload.html')
 
 
-@cross_origin(origins="*", send_wildcard=True)
 @app.route('/upload/profile/user/', methods=['POST', 'OPTIONS'])
 def upload_profile_image():
     if request.method == "OPTIONS":
@@ -35,7 +33,19 @@ def upload_profile_image():
                 im = Image.open(file)
                 if im.mode != "RGB":
                     im = im.convert("RGB")
-                im.thumbnail((app.config['PROFILE_IMAGE_SIZE'], app.config['PROFILE_IMAGE_SIZE']))
+                if hasattr(im, '_getexif'): # only present in JPEGs
+                    for orientation in ExifTags.TAGS.keys():
+                        if ExifTags.TAGS[orientation] == 'Orientation':
+                            break
+                    e = im._getexif()       # returns None if no EXIF data
+                    if e is not None:
+                        exif = dict(e.items())
+                        orientation = exif[orientation]
+
+                        if orientation == 3:   im = im.transpose(Image.ROTATE_180)
+                        elif orientation == 6: im = im.transpose(Image.ROTATE_270)
+                        elif orientation == 8: im = im.transpose(Image.ROTATE_90)
+                im.thumbnail((app.config['PROFILE_IMAGE_SIZE'], app.config['PROFILE_IMAGE_SIZE']), Image.ANTIALIAS)
                 im.save(temp, "JPEG")
                 url = upload_to_s3(temp.getvalue(), filename)
             except IOError as e:
