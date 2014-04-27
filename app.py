@@ -5,6 +5,7 @@ from PIL import Image
 import uuid
 from simples3 import S3Bucket
 from flask_cors import cross_origin
+import StringIO
 
 app = Flask(__name__)
 app.config.from_object('settings')
@@ -22,16 +23,14 @@ def upload_profile_image():
     url = ''
     if file and allowed_file(file.filename):
         filename = secure_filename(str(uuid.uuid4()) + ".jpg")
-        save_dir = app.root_path + app.config['UPLOAD_FOLDER'] + '/'
-        image_path = save_dir + filename
-        file.save(image_path)
+        temp = StringIO.StringIO()
         try:
-            im = Image.open(image_path)
+            im = Image.open(file)
             if im.mode != "RGB":
                 im = im.convert("RGB")
             im.thumbnail((app.config['PROFILE_IMAGE_SIZE'], app.config['PROFILE_IMAGE_SIZE']))
-            im.save(image_path, "JPEG")
-            url = upload_to_s3(image_path, filename)
+            im.save(temp, "JPEG")
+            url = upload_to_s3(temp.getvalue(), filename)
         except IOError as e:
             return "{error: '" + str(e) + "' }"
         return url
@@ -41,12 +40,11 @@ def upload_profile_image():
 
 def upload_to_s3(file, filename):
     """
-    upload a file to s3, and return the url
+    upload contents to s3, and return the url
     """
     s = S3Bucket(app.config['BUCKET'], access_key=app.config['ACCESS_KEY'],
                 secret_key=app.config['SECRET_KEY'], base_url=app.config['BASE_URL'] + '/' + app.config['BUCKET'])
-    to_upload = open(file)
-    s.put(filename, to_upload.read())
+    s.put(filename, file)
     return app.config['BASE_URL'] + '/' + app.config['BUCKET'] + '/' + filename
 
 
@@ -60,4 +58,4 @@ def get_extension(filename):
 
 
 if __name__ == '__main__':
-    app.run(port=8080, debug=True)
+    app.run(port=8000, debug=True)
