@@ -1,5 +1,7 @@
 import os
 
+DEBUG = True
+
 UPLOAD_FOLDER = '/uploads'  # empty this directory every few minutes
 ALLOWED_EXTENSIONS = set(['png', 'jpg'])
 PROFILE_IMAGE_SIZE = 128  # width and height
