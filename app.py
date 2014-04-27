@@ -16,7 +16,7 @@ def home():
     return render_template('upload.html')
 
 
-@cross_origin()
+@cross_origin(origins="*", send_wildcard=True)
 @app.route('/upload/profile/user/', methods=['POST'])
 def upload_profile_image():
     file = request.files['file']
